@@ -2,10 +2,12 @@ import { GetStaticProps } from 'next';
 import Head from 'next/head';
 import Prismic from '@prismicio/client';
 import { RichText } from 'prismic-dom'
+import Link from 'next/link';
 
 import { getPrismicClient } from '../../services/prismic';
 
 import styles from './styles.module.scss';
+import { useSession } from 'next-auth/client';
 
 type Post = {
   slug: string;
@@ -19,25 +21,55 @@ interface PostsProps {
 };
 
 export default function Posts({ posts }: PostsProps) {
-  return(
-    <>
-      <Head>
-        <title>Posts | ig.news</title>
-      </Head>
+  const [session] = useSession();
 
-      <main className={styles.container}>
-        <div className={styles.posts}>
-          { posts.map(post => (
-            <a key={post.slug} href="#">
-              <time>{post.updatedAt}</time>
-              <strong>{post.title}</strong>
-              <p>{post.excerpt}</p>
-            </a>
-          )) }
-        </div>
-      </main>
-    </>
-  );
+  if (!session?.activeSubscription) {
+    return(
+      <>
+        <Head>
+          <title>Posts | ig.news</title>
+        </Head>
+  
+        <main className={styles.container}>
+          <div className={styles.posts}>
+            { posts.map(post => (
+              <Link href={`/posts/preview/${post.slug}`}>
+                <a key={post.slug} >
+                  <time>{post.updatedAt}</time>
+                  <strong>{post.title}</strong>
+                  <p>{post.excerpt}</p>
+                </a>
+              </Link>
+            )) }
+          </div>
+        </main>
+      </>
+    );
+  } else {
+    return(
+      <>
+        <Head>
+          <title>Posts | ig.news</title>
+        </Head>
+  
+        <main className={styles.container}>
+          <div className={styles.posts}>
+            { posts.map(post => (
+              <Link href={`/posts/${post.slug}`}>
+                <a key={post.slug} >
+                  <time>{post.updatedAt}</time>
+                  <strong>{post.title}</strong>
+                  <p>{post.excerpt}</p>
+                </a>
+              </Link>
+            )) }
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  
 }
 
 export const getStaticProps: GetStaticProps = async () => {
@@ -55,7 +87,7 @@ export const getStaticProps: GetStaticProps = async () => {
       slug: post.uid,
       title: RichText.asText(post.data.title),
       excerpt: post.data.content.find(content => content.type === 'paragraph')?.text ?? '',
-      updatedAt: new Date().toLocaleDateString('pt-br', {
+      updatedAt: new Date(post.last_publication_date).toLocaleDateString('pt-br', {
         day: '2-digit',
         month: 'long',
         year: 'numeric'
